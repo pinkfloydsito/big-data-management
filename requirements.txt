@@ -1,1 +1,2 @@
 shapely==2.0.7
+delta-spark==3.3.0

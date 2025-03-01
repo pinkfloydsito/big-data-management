@@ -1,16 +1,34 @@
+import json
+import os
+
+from delta import *
+
 from pyspark.context import SparkContext
 from pyspark.sql import SparkSession, Window
+from pyspark.sql.functions import udf
+from pyspark.sql.types import StringType
 import pyspark.sql.functions as f
+from shapely.geometry import Point, shape
 
 PROJECT_NAME = "NY-Concrete-Jungle-Analysis"
 
 sample_path = "./sample-data.csv"
 sc = SparkContext("local", PROJECT_NAME)
-spark = (
+
+builder = (
     SparkSession.builder.appName(PROJECT_NAME)
     .enableHiveSupport()  # Enables Hive support, persistent Hive metastore
-    .getOrCreate()
+    .config("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension")
+    .config(
+        "spark.sql.catalog.spark_catalog",
+        "org.apache.spark.sql.delta.catalog.DeltaCatalog",
+    )
 )
+
+spark = configure_spark_with_delta_pip(builder).getOrCreate()
+
+# Configure Spark to use Delta Lake
+
 from pyspark.sql.types import (
     StructType,
     StructField,
@@ -61,7 +79,9 @@ schema = StructType(
         StructField("rate_code", StringType()),
         StructField("store_and_fwd_flag", StringType()),
         StructField("pickup_datetime", StringType()),
-        StructField("dropoff_datetime", StringType()),
+        StructField(
+            "dropoff_datetime", StringType()
+        ),  # XXX: need to apply this: https://medium.com/knoldus/apache-spark-handle-null-timestamp-while-reading-csv-in-spark-2-0-0-f53b533ec1c1
         StructField("passenger_count", IntegerType()),
         StructField("pickup_longitude", DoubleType()),
         StructField("pickup_latitude", DoubleType()),
@@ -78,7 +98,7 @@ sample_df = (
     .csv(sample_path)
 )
 
-# sample_df.head(5)
+sample_df.head(5)
 
 # sample_df.select(
 #     f.to_timestamp(f.col('pickup_datetime'), 'dd-MM-yy HH:mm').alias('pickup_datetime')
@@ -128,9 +148,12 @@ We need to write a spark programs for each of the following query:
 taxi. We will elaborate on that more later
 """
 
-window_spec = Window.partitionBy("hack_license").orderBy("pickup_datetime")
+window_spec = Window.partitionBy("hack_license").orderBy(
+    "pickup_datetime"
+)  # ascending order
 
 # Calculate trip duration and idle time between trips
+# XXX: no idea why we are using instead of s, need to improve this
 trip_data = (
     df.withColumn(
         "trip_duration_ms",
@@ -198,16 +221,10 @@ utilization_per_driver.select(
 +--------------------+----------------------+------------------+----------------+
 """
 
-import json
-from shapely.geometry import Point, shape
-from pyspark.sql.functions import udf
-from pyspark.sql.types import StringType
-import os
-
 os.getcwd()
 
-with open("./nyc-boroughs.geojson", "r") as f:
-    borough_data = json.load(f)
+with open("./nyc-boroughs.geojson", "r") as file:
+    borough_data = json.load(file)
 
 borough_shapes = {}
 for feature in borough_data["features"]:
@@ -238,7 +255,7 @@ def find_borough(lon, lat):
 # Register the UDF
 find_borough_udf = udf(find_borough, StringType())
 
-# Step 4: Apply UDF to add pickup and dropoff borough information
+# Apply UDF to add pickup and dropoff borough information
 enriched_df = df.withColumn(
     "pickup_borough", find_borough_udf(df["pickup_longitude"], df["pickup_latitude"])
 ).withColumn(
@@ -255,3 +272,154 @@ enriched_df.select(
     "dropoff_latitude",
     "dropoff_borough",
 ).show(5)
+
+
+# XXX: Why Unknown?
+"""
++--------------------+----------------+---------------+--------------+-----------------+-------
+|        hack_license|pickup_longitude|pickup_latitude|pickup_borough|dropoff_longitude|dropoff
++--------------------+----------------+---------------+--------------+-----------------+-------
+|BA96DE419E711691B...|      -73.978165|      40.757977|       Unknown|       -73.989838|       
+|9FD8F69F0804BDB55...|      -74.006683|      40.731781|       Unknown|       -73.994499|       
+|9FD8F69F0804BDB55...|      -74.004707|       40.73777|       Unknown|       -74.009834|       
+|51EE87E3205C985EF...|      -73.974602|      40.759945|       Unknown|       -73.984734|       
+|51EE87E3205C985EF...|       -73.97625|      40.748528|       Unknown|       -74.002586|       
++--------------------+----------------+---------------+--------------+-----------------+-------
+"""
+
+
+borough_idle_time = (
+    enriched_df.withColumn("next_pickup", f.lead("pickup_datetime").over(window_spec))
+    .withColumn(
+        "idle_time_ms",
+        f.when(
+            f.col("next_pickup").isNotNull(),
+            (f.col("next_pickup").cast("long") - f.col("dropoff_datetime").cast("long"))
+            * 1000,
+        ).otherwise(None),
+    )
+    .filter(
+        f.col("idle_time_ms").isNotNull()
+    )  # Filter out last trips with no next pickup
+    .groupBy("dropoff_borough")
+    .agg(
+        f.avg("idle_time_ms").alias("avg_idle_time_ms"),
+        f.count("*").alias("trip_count"),
+    )
+    .withColumn(
+        "avg_idle_time_minutes", f.round(f.col("avg_idle_time_ms") / (1000 * 60), 2)
+    )
+)
+
+borough_idle_time.show(5)
+
+"""
++---------------+--------------------+----------+---------------------+         
+|dropoff_borough|    avg_idle_time_ms|trip_count|avg_idle_time_minutes|
++---------------+--------------------+----------+---------------------+
+|         Queens|   5990333.638025594|      4376|                99.84|
+|        Unknown|  2209909.7184102032|     85621|                36.83|
+|  Staten Island|1.0073333333333334E7|         9|               167.89|
+|      Manhattan|           2060000.0|         3|                34.33|
++---------------+--------------------+----------+---------------------+
+"""
+
+
+same_borough_trips = (
+    enriched_df.filter(f.col("pickup_borough") == f.col("dropoff_borough"))
+    .groupBy("pickup_borough")
+    .count()
+    .withColumnRenamed("count", "same_borough_trip_count")
+)
+
+# Show the results
+same_borough_trips.show(5)
+
+"""
++--------------+-----------------------+                                        
+
+|pickup_borough|same_borough_trip_count|
++--------------+-----------------------+
+|        Queens|                   1389|
+|       Unknown|                  89995|
+| Staten Island|                      1|
++--------------+-----------------------+
+"""
+
+diff_borough_trips = (
+    enriched_df.filter(f.col("pickup_borough") != f.col("dropoff_borough"))
+    .groupBy("pickup_borough", "dropoff_borough")
+    .count()
+    .withColumnRenamed("count", "trip_count")
+    .orderBy(f.desc("trip_count"))
+)
+
+diff_borough_trips.show()
+
+"""
++--------------+---------------+----------+                                     
+|pickup_borough|dropoff_borough|trip_count|
++--------------+---------------+----------+
+|        Queens|        Unknown|      4520|
+|       Unknown|         Queens|      4076|
+|       Unknown|  Staten Island|        10|
+|       Unknown|      Manhattan|         3|
+|        Queens|  Staten Island|         2|
+| Staten Island|         Queens|         1|
+|        Queens|      Manhattan|         1|
+|     Manhattan|        Unknown|         1|
++--------------+---------------+----------+
+"""
+
+total_inter_borough = enriched_df.filter(
+    f.col("pickup_borough") != f.col("dropoff_borough")
+).count()
+
+
+print(f"Total number of trips between different boroughs: {total_inter_borough}")
+
+# Total number of trips between different boroughs: 8614
+
+# Define paths for storing the data
+BASE_PATH = "./delta_lake_storage"
+ENRICHED_TRIPS_PATH = f"{BASE_PATH}/enriched_taxi_trips"
+UTILIZATION_PATH = f"{BASE_PATH}/taxi_utilization"
+BOROUGH_IDLE_TIME_PATH = f"{BASE_PATH}/borough_idle_time"
+SAME_BOROUGH_TRIPS_PATH = f"{BASE_PATH}/same_borough_trips"
+DIFF_BOROUGH_TRIPS_PATH = f"{BASE_PATH}/diff_borough_trips"
+
+# Write the enriched dataframe to Delta Lake
+enriched_df.write.format("delta").mode("overwrite").save(ENRICHED_TRIPS_PATH)
+
+# Write the utilization metrics to Delta Lake
+utilization_per_driver.write.format("delta").mode("overwrite").save(UTILIZATION_PATH)
+
+# Write the borough idle time metrics to Delta Lake
+borough_idle_time.write.format("delta").mode("overwrite").save(BOROUGH_IDLE_TIME_PATH)
+
+# Write the same-borough trips to Delta Lake
+same_borough_trips.write.format("delta").mode("overwrite").save(SAME_BOROUGH_TRIPS_PATH)
+
+# Write the different-borough trips to Delta Lake
+diff_borough_trips.write.format("delta").mode("overwrite").save(DIFF_BOROUGH_TRIPS_PATH)
+
+# Create Delta Lake tables for SQL queries
+spark.sql(
+    f"CREATE TABLE IF NOT EXISTS enriched_taxi_trips USING DELTA LOCATION '{ENRICHED_TRIPS_PATH}'"
+)
+spark.sql(
+    f"CREATE TABLE IF NOT EXISTS taxi_utilization USING DELTA LOCATION '{UTILIZATION_PATH}'"
+)
+spark.sql(
+    f"CREATE TABLE IF NOT EXISTS borough_idle_time USING DELTA LOCATION '{BOROUGH_IDLE_TIME_PATH}'"
+)
+spark.sql(
+    f"CREATE TABLE IF NOT EXISTS same_borough_trips USING DELTA LOCATION '{SAME_BOROUGH_TRIPS_PATH}'"
+)
+spark.sql(
+    f"CREATE TABLE IF NOT EXISTS diff_borough_trips USING DELTA LOCATION '{DIFF_BOROUGH_TRIPS_PATH}'"
+)
+
+# Generate statistics for better query performance
+spark.sql("ANALYZE TABLE enriched_taxi_trips COMPUTE STATISTICS")
+spark.sql("ANALYZE TABLE taxi_utilization COMPUTE STATISTICS")
