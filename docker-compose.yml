@@ -9,5 +9,6 @@ services:
       - "8888:8888"
       - "4040:4040"
     volumes:
-      - "./mnt/:/app/mnt/"
-      - "../.data/:/app/input/"
+      - "./src/:/home/jovyan/"
+      - "./input/:/home/jovyan/input/"
+      - "./requirements.txt:/home/jovyan/requirements.txt"
