@@ -5,7 +5,7 @@
 Project [Big Data](https://courses.cs.ut.ee/2025/bdm/spring/Main/HomePage) is provided by [University of Tartu](https://courses.cs.ut.ee/).
 
 Students: **Andres Caceres, Fidan Karimova, Moiz Ahmad, Siddiga Gadirova**
-#### Introduction
+## Introduction
 This report presents an analysis of New York City taxi data as part of the Big Data 2025 Group 17 project at the University of Tartu. Using PySpark, we explored key taxi service metrics, including utilization rates, time to find the next fare, intra-borough and inter-borough trip patterns. By leveraging distributed computing and geospatial analysis, we provide insights into taxi efficiency and travel behavior across different boroughs.
 
 ## Queries 
@@ -188,7 +188,7 @@ diff_borough_df = taxi_df.filter(col("pickup_borough") != col("dropoff_borough")
 diff_borough_count = diff_borough_df.groupBy("pickup_borough", "dropoff_borough").agg(count("medallion").alias("cross_borough_trips"))
 ```
 The code filters taxi trips where the pickup and dropoff boroughs are not the same. Then, it groups by `pickup_borough` and `dropoff_borough` and counts the number of such trips.
-#### Conclusion
+## Conclusion
 Our analysis highlights significant patterns in taxi utilization and travel efficiency across NYC boroughs. The results show varying idle times, borough-specific demand trends, and differences in trip frequencies within and between boroughs. These insights can help optimize taxi operations, reduce idle times, and improve urban mobility strategies.
 
 ## Requirements
