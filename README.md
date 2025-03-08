@@ -170,10 +170,22 @@ This code defines the `get_borough function`, which determines the borough for a
 
 ```python
 taxi_df = taxi_df.withColumn("pickup_borough", to_borough_udf(col("pickup_longitude"), col("pickup_latitude")))
+taxi_df = taxi_df.withColumn("dropoff_borough", to_borough_udf(col("dropoff_longitude"), col("dropoff_latitude")))
 ```
-This line adds a new column `pickup_borough` to the taxi_df DataFrame by applying the to_borough_udf function to each row's pickup coordinates
+This line adds two new columns `pickup_borough` and `dropoff_borough` to the taxi_df DataFrame by applying the to_borough_udf function to each row's pickup and dropoff coordinates.
+```python
+same_borough_df = taxi_df.filter(col("pickup_borough") == col("dropoff_borough"))
+same_borough_count = same_borough_df.groupBy("pickup_borough").agg(count("medallion").alias("same_borough_trips"))
+```
+The code filters taxi trips where the pickup and dropoff boroughs are the same. Then, it groups by `pickup_borough` and counts the number of such trips.
 
 ### 4. The number of trips that started in one borough and ended in another one
+This is exactly the same as Query 3 but the only difference is it will show the trips which started in one borough and ended in another. Major part of implementation will remain the same as query only difference will come in comparing the columns.
+```python
+diff_borough_df = taxi_df.filter(col("pickup_borough") != col("dropoff_borough"))
+diff_borough_count = diff_borough_df.groupBy("pickup_borough", "dropoff_borough").agg(count("medallion").alias("cross_borough_trips"))
+```
+The code filters taxi trips where the pickup and dropoff boroughs are not the same. Then, it groups by `pickup_borough` and `dropoff_borough` and counts the number of such trips.
 
 ## Requirements
 1. Dependencies are listed in the `requirements.txt` file
