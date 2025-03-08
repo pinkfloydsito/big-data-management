@@ -134,6 +134,13 @@ The results of the analysis are as follows:
 | Manhattan      | 4185.0                |
 
 ### 3. The number of trips that started and ended within the same borough,
+This query identifies trips where both the pickup and drop-off locations belong to the same borough. These intra-borough trips help understand local taxi demand within boroughs.
+```python
+borough_polygons = {}
+for _, row in geojson_data.iterrows():
+    borough_polygons[row['borough']] = row['geometry'] 
+```
+The first line initializes an empty dictionary to store borough names as keys and their geometries as values. The loop will iterate through geojson data and add an entry to the dictionary mapping the borough name to its geometry.
 
 ### 4. The number of trips that started in one borough and ended in another one
 
