@@ -141,6 +141,37 @@ for _, row in geojson_data.iterrows():
     borough_polygons[row['borough']] = row['geometry'] 
 ```
 The first line initializes an empty dictionary to store borough names as keys and their geometries as values. The loop will iterate through geojson data and add an entry to the dictionary mapping the borough name to its geometry.
+```python
+borough_broadcast = spark.sparkContext.broadcast(borough_polygons)
+```
+This line broadcasts the `borough_polygons` dictionary to all worker nodes in a distributed Spark environment. It ensures efficient lookup of borough geometries without redundant data transfers between nodes.
+```python
+def get_borough(lon, lat):
+    try:
+        lon, lat = float(lon), float(lat)
+        point = Point(lon, lat)
+        print(f"Checking: lon={lon}, lat={lat}")
+        for borough, polygon in borough_broadcast.value.items():
+            if polygon.contains(point):
+                print(f"Matched: {lon}, {lat} -> {borough}")
+                return borough
+    except Exception as e:
+        print(f"Error processing ({lon}, {lat}): {e}") 
+    return "Unknown"
+# Register the function as a Spark UDF again
+to_borough_udf = spark.udf.register("to_borough", get_borough, StringType())
+```
+This code defines the `get_borough function`, which determines the borough for a given longitude (lon) and latitude (lat).
+
+- It first converts the coordinates to floats and creates a `Point` object.
+- It then iterates over `borough_broadcast.value`, checking if the point is inside any borough's polygon using .contains().
+- If a match is found, it returns the borough name; otherwise, it returns `Unknown`.
+- Finally, the function is registered as a Spark UDF (User-Defined Function) called `to_borough` for use in Spark SQL queries.
+
+```python
+taxi_df = taxi_df.withColumn("pickup_borough", to_borough_udf(col("pickup_longitude"), col("pickup_latitude")))
+```
+This line adds a new column `pickup_borough` to the taxi_df DataFrame by applying the to_borough_udf function to each row's pickup coordinates
 
 ### 4. The number of trips that started in one borough and ended in another one
 
