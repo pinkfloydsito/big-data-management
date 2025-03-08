@@ -6,7 +6,16 @@ Project [Big Data](https://courses.cs.ut.ee/2025/bdm/spring/Main/HomePage) is pr
 
 Students: **Andres Caceres, Fidan Karimova, Moiz Ahmad, Siddiga Gadirova**
 ## Introduction
-This report presents an analysis of New York City taxi data as part of the Big Data 2025 Group 17 project at the University of Tartu. Using PySpark, we explored key taxi service metrics, including utilization rates, time to find the next fare, intra-borough and inter-borough trip patterns. By leveraging distributed computing and geospatial analysis, we provide insights into taxi efficiency and travel behavior across different boroughs.
+This report presents an in-depth analysis of the New York City taxi dataset using Apache Spark. The primary goal is to examine taxi utilization, fare efficiency, and borough-based trip patterns to derive insights into urban mobility. The dataset includes key details such as trip durations, pickup and drop-off locations, and timestamps. Additionally, a GeoJSON file is used to map longitude-latitude coordinates to NYC boroughs for spatial analysis.
+
+To address the core research objectives, we computed four main queries:
+
+- Taxi Utilization Rate: Measuring the fraction of time a taxi is occupied by passengers.
+- Time to Find the Next Fare: Calculating the average idle time before a taxi picks up a new passenger, categorized by borough.
+- Intra-Borough Trips: Counting trips that start and end within the same borough.
+- Inter-Borough Trips: Counting trips that start in one borough and end in another.
+
+By leveraging PySpark’s distributed computing capabilities, along with geospatial and temporal processing, we analyze taxi service efficiency and urban travel patterns in NYC. This study provides insights that could help optimize taxi operations and improve transportation strategies in dense urban environments.
 
 ## Queries 
 ### 1. Utilization: This is per taxi/driver. This can be computed by computing the idle time per taxi.
