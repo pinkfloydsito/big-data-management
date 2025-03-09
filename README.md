@@ -17,6 +17,30 @@ To address the core research objectives, we computed four main queries:
 
 By leveraging PySpark’s distributed computing capabilities, along with geospatial and temporal processing, we analyze taxi service efficiency and urban travel patterns in NYC. This study provides insights that could help optimize taxi operations and improve transportation strategies in dense urban environments.
 
+## Files to be used
+We have 3 notebooks in the repository:
+ - `checkpoint-1-sample.ipynb` - This notebook processes the sample data and does a small exploration of the data solving all the queries requested previously.
+ - `checkpoint-1-csv-to-parquet.ipynb` - This notebook pre-processes the production data and generates a parquet file to be used in the main notebook.
+ - `checkpoint-1-prod.ipynb` - This notebook processes the main data and solves all the queries requested previously.
+
+## Requirements
+1. Dependencies are listed in the `requirements.txt` file
+2. Run `docker compose up -d` in the terminal
+
+## How to run the project
+### Sample Data
+ - After the docker is up and running, open the `checkpoint-1-sample.ipynb` notebook and run all the cells. Ensure that `sample.csv` and `nyc-boroughs.geojson`.
+
+### Production Data
+ - Start by opening the `checkpoint-1-csv-to-parquet.ipynb` notebook and run all the cells. Ensure that `input/prod/trip_data_*.csv` is created, ensure the parquet file is created in the `output/prod/taxi_data.parquet` folder.
+ - Run the file `checkpoint-1-prod.ipynb` and visualize the results.
+
+## Observations
+ - There was a mismatch between the sample data and the production data related to the columns, there were 2 additional columns in the production data: `trip_distance` and `trip_time_in_secs`.
+ - For the production dataset, columns were removed before the parquet file was created. And then the processing happened on the parquet file. This is due to the fact that the reads are faster on parquet files.
+ - UDF functions were used to convert the longitude and latitude to boroughs. However these functions are not efficient and take a lot of time to process due to the fact that they run in Python.
+
+
 ## Queries 
 ### 1. Utilization: This is per taxi/driver. This can be computed by computing the idle time per taxi.
 
@@ -199,19 +223,3 @@ diff_borough_count = diff_borough_df.groupBy("pickup_borough", "dropoff_borough"
 The code filters taxi trips where the pickup and dropoff boroughs are not the same. Then, it groups by `pickup_borough` and `dropoff_borough` and counts the number of such trips.
 ## Conclusion
 Our analysis highlights significant patterns in taxi utilization and travel efficiency across NYC boroughs. The results show varying idle times, borough-specific demand trends, and differences in trip frequencies within and between boroughs. These insights can help optimize taxi operations, reduce idle times, and improve urban mobility strategies.
-
-## Requirements
-1. Dependencies are listed in the `requirements.txt` file
-2. Just need to run `docker compose up -d` in the terminal
-3. the results and operations done for the previous queries will show up in the notebook.
-
-## Note for Students
-
-* Clone the created repository offline;
-* Add your name and surname into the Readme file and your teammates as collaborators
-* Complete the field above 
-* Make any changes to your repository according to the specific assignment;
-* Ensure code reproducibility and instructions on how to replicate the results;
-* Add an open-source license, e.g., Apache 2.0;
-* convert README in pdf
-* keep one report for all projects
