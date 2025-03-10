@@ -98,17 +98,19 @@ utilization_df = utilization_df.withColumn(
 #### Vehicle Utilization Statistics
 
 Using `summary` from the dataframe it was possible to get the following statistics:
-| summary | total_trip_time | total_idle_time | utilization_rate | trip_time_hours | idle_time_hours | idle_time_minutes | trip_time_minutes |
-|---------|----------------|-----------------|------------------|----------------|----------------|-------------------|-------------------|
-| **count** | 6435 | 6435 | 6435 | 6435 | 6435 | 6435 | 6435 |
-| **mean** | 10111.49 | 16852.20 | 0.45 | 2.81 | 4.68 | 280.87 | 168.52 |
-| **stddev** | 5049.82 | 11327.89 | 0.20 | 1.40 | 3.15 | 188.80 | 84.16 |
-| **min** | 60 | 0 | 0.06 | 0.02 | 0.00 | 0.0 | 1.0 |
-| **25%** | 6480 | 8520 | 0.32 | 1.80 | 2.37 | 142.0 | 108.0 |
-| **50%** | 10860 | 15780 | 0.41 | 3.02 | 4.38 | 263.0 | 181.0 |
-| **75%** | 13920 | 23520 | 0.51 | 3.87 | 6.53 | 392.0 | 232.0 |
-| **max** | 25020 | 55080 | 1.0 | 6.95 | 15.30 | 918.0 | 417.0 |
+| Statistic | total_trip_time (seconds) | total_trip_time (days) | total_idle_time (seconds) | total_idle_time (days) | utilization_rate |
+|-----------|---------------------------|------------------------|---------------------------|------------------------|------------------|
+| mean      | 9,369,729.377 | 108 days 10 hrs | 10,493,901.201 | 121 days 10 hrs | 48.59% |
+| stddev    | 2,934,260.205 | 33 days 23 hrs | 3,768,215.372 | 43 days 14 hrs | 8.90% |
+| min       | 1 | 0 days 0 hrs | 0 | 0 days 0 hrs | 0.76% |
+| 25%       | 8,435,580 | 97 days 15 hrs | 8,870,100 | 102 days 15 hrs | 44.83% |
+| 50%       | 10,126,844 | 117 days 5 hrs | 11,188,662 | 129 days 11 hrs | 47.43% |
+| 75%       | 11,290,790 | 130 days 16 hrs | 13,151,771 | 152 days 5 hrs | 50.40% |
+| max       | 14,555,220 | 168 days 11 hrs | 18,421,293 | 213 days 5 hrs | 100.00% |
 
+We can see the average taxi in the fleet operated for a total of approximately 230 days (108 + 121) days as shown above.
+The average utilization rate is 48.59%, indicating that taxis are occupied for nearly half of their operational time, there might be some room for improvement in terms of utilization.
+Seeing the idle time is quite high per year (121 days on average), shows we can improve dispatching and do routing optimization to reduce idle time.
 
 ### 2. The average time it takes for a taxi to find its next fare(trip) per destination borough. This can be computed by finding the difference of time, e.g. in seconds, between the drop off of a trip and the pick up of the next trip.
 
@@ -161,12 +163,14 @@ next_fare_df = taxi_df \
 The `lead()` function is crucial here - while `lag()` looks at previous values in a window, `lead()` looks at upcoming values, making it perfect for analyzing what happens *after* each trip.
 
 The results of the analysis are as follows:
-| dropoff_borough | avg_time_to_next_fare |
-|----------------|-----------------------|
-| Queens         | 6418.319850653392     |
-| Unknown        | 2441.0305564052887    |
-| Staten Island  | 13935.0               |
-| Manhattan      | 4185.0                |
+| dropoff_borough | avg_time_to_next_fare (seconds) | avg_time_to_next_fare (hours) |
+|-----------------|----------------------------------|-------------------------------|
+| Queens          | 5452.72                          | 1h 30m 52s                    |
+| Unknown         | 1495.17                          | 0h 24m 55s                    |
+| Manhattan       | 5703.44                          | 1h 35m 3s                     |
+| Staten Island   | 7951.62                          | 2h 12m 31s                    |
+
+This shows the average wait time for drivers to get their next fare after dropping off passengers in different boroughs. Staten Island has the longest wait time at over 2 hours, while the "Unknown" category has the shortest at under 25 minutes. Manhattan and Queens both have wait times of approximately 1.5 hours.
 
 ### 3. The number of trips that started and ended within the same borough,
 This query identifies trips where both the pickup and drop-off locations belong to the same borough. These intra-borough trips help understand local taxi demand within boroughs.
@@ -214,6 +218,16 @@ same_borough_count = same_borough_df.groupBy("pickup_borough").agg(count("medall
 ```
 The code filters taxi trips where the pickup and dropoff boroughs are the same. Then, it groups by `pickup_borough` and counts the number of such trips.
 
+### Results:
+| pickup_borough | same_borough_trips |
+|----------------|-------------------|
+| Queens         | 224,883           |
+| Unknown        | 15,785,053        |
+| Staten Island  | 3,179             |
+| Manhattan      | 57                |
+
+This table shows the number of taxi trips that both started and ended in the same borough. The "Unknown" category has by far the highest number at over 15.7 million trips, followed by Queens with about 224,883 trips. Staten Island has significantly fewer at 3,179 trips, while Manhattan has only 57 same-borough trips in this dataset.
+
 ### 4. The number of trips that started in one borough and ended in another one
 This is exactly the same as Query 3 but the only difference is it will show the trips which started in one borough and ended in another. Major part of implementation will remain the same as query only difference will come in comparing the columns.
 ```python
@@ -221,5 +235,23 @@ diff_borough_df = taxi_df.filter(col("pickup_borough") != col("dropoff_borough")
 diff_borough_count = diff_borough_df.groupBy("pickup_borough", "dropoff_borough").agg(count("medallion").alias("cross_borough_trips"))
 ```
 The code filters taxi trips where the pickup and dropoff boroughs are not the same. Then, it groups by `pickup_borough` and `dropoff_borough` and counts the number of such trips.
+
+
+### Results:
+| pickup_borough | dropoff_borough | cross_borough_trips |
+|----------------|-----------------|---------------------|
+| Queens         | Unknown         | 6,324,787           |
+| Unknown        | Queens          | 6,195,547           |
+| Unknown        | Staten Island   | 24,341              |
+| Queens         | Staten Island   | 7,710               |
+| Unknown        | Manhattan       | 5,402               |
+| Manhattan      | Unknown         | 1,010               |
+| Queens         | Manhattan       | 731                 |
+| Staten Island  | Unknown         | 650                 |
+| Staten Island  | Queens          | 46                  |
+| Manhattan      | Queens          | 15                  |
+
+This table shows the number of taxi trips between different boroughs. The highest volume is for trips from Queens to Unknown locations (6.3M trips) and from Unknown locations to Queens (6.2M trips). The least common cross-borough trips in this dataset are from Manhattan to Queens, with only 15 recorded trips.
+
 ## Conclusion
 Our analysis highlights significant patterns in taxi utilization and travel efficiency across NYC boroughs. The results show varying idle times, borough-specific demand trends, and differences in trip frequencies within and between boroughs. These insights can help optimize taxi operations, reduce idle times, and improve urban mobility strategies.
