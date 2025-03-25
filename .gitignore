@@ -8,3 +8,5 @@ src/requirements.txt
 .jupyter/
 .local/
 .npm/
+.ivy2/
+trip_data_*.csv
