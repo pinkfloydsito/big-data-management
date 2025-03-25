@@ -1,0 +1,14 @@
+version: '3'
+
+services:
+  pyspark:
+    image: quay.io/jupyter/pyspark-notebook:spark-3.5.3
+    container_name: big_data_project_pyspark
+    command: start-notebook.sh --NotebookApp.token=''
+    ports:
+      - "8888:8888"
+      - "4040:4040"
+    volumes:
+      - "./src/:/home/jovyan/"
+      - "./input/:/home/jovyan/input/"
+      - "./requirements.txt:/home/jovyan/requirements.txt"
