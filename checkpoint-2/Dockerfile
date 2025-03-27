@@ -12,6 +12,7 @@ RUN apt-get update && \
 # Define versions
 ENV SPARK_VERSION=3.5.3
 ENV SCALA_VERSION=2.12
+ENV DELTA_VERSION=3.3.0
 
 # Add Spark Kafka connector and dependencies
 RUN cd /usr/local/spark && \
@@ -19,7 +20,9 @@ RUN cd /usr/local/spark && \
   wget -q https://repo1.maven.org/maven2/org/apache/kafka/kafka-clients/3.3.1/kafka-clients-3.3.1.jar -P jars/ && \
   wget -q https://repo1.maven.org/maven2/org/apache/commons/commons-pool2/2.11.1/commons-pool2-2.11.1.jar -P jars/ && \
   wget -q https://repo1.maven.org/maven2/org/apache/spark/spark-token-provider-kafka-0-10_${SCALA_VERSION}/${SPARK_VERSION}/spark-token-provider-kafka-0-10_${SCALA_VERSION}-${SPARK_VERSION}.jar -P jars/ && \
-  wget -q https://repo1.maven.org/maven2/org/apache/commons/commons-lang3/3.12.0/commons-lang3-3.12.0.jar -P jars/
+  wget -q https://repo1.maven.org/maven2/org/apache/commons/commons-lang3/3.12.0/commons-lang3-3.12.0.jar -P jars/ && \
+  wget -q https://repo1.maven.org/maven2/io/delta/delta-spark_${SCALA_VERSION}/${DELTA_VERSION}/delta-spark_${SCALA_VERSION}-${DELTA_VERSION}.jar -P jars/ && \
+  wget -q https://repo1.maven.org/maven2/io/delta/delta-storage/${DELTA_VERSION}/delta-storage-${DELTA_VERSION}.jar -P jars/
 
 # Set environment variables for Spark to find the jars
 ENV PYSPARK_SUBMIT_ARGS="--packages org.apache.spark:spark-sql-kafka-0-10_${SCALA_VERSION}:${SPARK_VERSION} pyspark-shell"

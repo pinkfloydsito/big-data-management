@@ -1,4 +1,4 @@
-medallion, hack_license, vendor_id, rate_code, store_and_fwd_flag, pickup_datetime, dropoff_datetime, passenger_count, trip_time_in_secs, trip_distance, pickup_longitude, pickup_latitude, dropoff_longitude, dropoff_latitude
+medallion,hack_license,vendor_id,rate_code,store_and_fwd_flag,pickup_datetime,dropoff_datetime,passenger_count,trip_time_in_secs,trip_distance,pickup_longitude,pickup_latitude,dropoff_longitude,dropoff_latitude
 3418135604CD3F357DD9577AF978C5C0,B25386A1F259C87449430593E904FDBC,VTS,1,,2013-08-30 07:57:00,2013-08-30 08:30:00,5,1980,14.58,-73.791359,40.645657,-73.922501,40.758766
 6D3B2A7682C30DCF64F3F12976EF93B6,A603A9D5FAA46E8FF2A97A143328D938,CMT,1,N,2013-08-30 23:26:23,2013-08-30 23:46:01,2,1177,11.00,-73.862724,40.769062,-73.976845,40.764595
 6D49E494913752B75B2685E0019FF3D5,3F0BFE90A5D71741840B25600A89E225,CMT,1,N,2013-08-30 09:18:10,2013-08-30 09:24:08,1,357,.80,-73.991653,40.750324,-73.98642,40.742924
