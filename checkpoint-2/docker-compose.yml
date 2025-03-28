@@ -2,6 +2,13 @@ version: '3'
 
 services:
   pyspark:
+    mem_limit: 8g
+    deploy:
+      resources:
+        limits:
+          memory: 8G
+        reservations:
+          memory: 4G
     build:
       context: .
       dockerfile: Dockerfile
